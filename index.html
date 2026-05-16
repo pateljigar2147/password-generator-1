@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simple Password Generator with Firebase</title>
+  <style>
+    :root{
+      --bg: #0f172a;
+      --card: #0b1220;
+      --accent: #7c3aed;
+      --muted: #94a3b8;
+      --glass: rgba(255,255,255,0.03);
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#071024 0%, var(--bg) 100%);color:#e6eef8;padding:24px;
+    }
+    .card{
+      width:100%;max-width:760px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:14px;padding:28px;box-shadow:0 8px 30px rgba(2,6,23,0.7);border:1px solid rgba(255,255,255,0.03);
+    }
+    h1{margin:0 0 8px;font-size:20px}
+    p.lead{margin:0 0 18px;color:var(--muted);font-size:14px}
+
+    .row{display:flex;gap:12px;align-items:center}
+    .controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+    label.switch{display:flex;align-items:center;gap:10px;padding:10px;background:var(--glass);border-radius:8px}
+    input[type=range]{width:100%}
+    .output{
+      display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);font-family:monospace;font-size:16px;overflow:hidden;word-break:break-all;
+    }
+    .btn{appearance:none;border:0;padding:10px 14px;border-radius:8px;background:var(--accent);color:white;font-weight:600;cursor:pointer}
+    .btn:disabled{background:#4b5563;cursor:not-allowed}
+    .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);font-weight:600}
+
+    .options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .option{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:8px;background:rgba(255,255,255,0.01);border:1px solid rgba(255,255,255,0.02)}
+    .option > div{display:flex;align-items:center;gap:10px}
+    .small{font-size:13px;color:var(--muted)}
+
+    .strength{height:10px;border-radius:6px;background:rgba(255,255,255,0.03);overflow:hidden}
+    .strength > i{display:block;height:100%;width:0%;background:linear-gradient(90deg,#ef4444,#f97316,#f59e0b,#10b981);transition:width 220ms ease}
+
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+
+    .input-field {
+      width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03); background: rgba(255,255,255,0.02); color: inherit; font-size: 14px; margin-top: 6px; outline: none;
+    }
+    .input-field:focus { border-color: var(--accent); }
+
+    #strengthText { font-weight: bold; margin-left: 6px; transition: color 0.2s ease; }
+    footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:right}
+
+    @media (max-width:700px){
+      .controls{grid-template-columns:1fr;}
+      .options{grid-template-columns:1fr;}
+      .row{flex-direction:column;align-items:stretch}
+      footer{text-align:left}
+    }
+  </style>
+</head>
+<body>
+  <main class="card" role="main">
+    <h1>Simple Password Generator</h1>
+    <p class="lead">Enter your name, choose length &amp; character types, then press <strong>Generate</strong>.</p>
+
+    <div style="margin-bottom: 16px;">
+      <label for="username">Enter Your Name (Optional)</label>
+      <input id="username" type="text" placeholder="e.g., JohnDoe" class="input-field" />
+    </div>
+
+    <div class="controls">
+      <div>
+        <label for="length">Length <span id="lenValue">16</span></label>
+        <input id="length" type="range" min="6" max="64" value="16" />
+      </div>
+      <div>
+        <label for="count">Quantity</label>
+        <input id="count" type="number" min="1" max="10" value="1" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit;font-size:14px" />
+      </div>
+    </div>
+
+    <div class="options" aria-label="character options">
+      <label class="option"><div><input id="lower" type="checkbox" checked /><span class="small">Include lowercase</span></div></label>
+      <label class="option"><div><input id="upper" type="checkbox" checked /><span class="small">Include UPPERCASE</span></div></label>
+      <label class="option"><div><input id="number" type="checkbox" checked /><span class="small">Include numbers</span></div></label>
+      <label class="option"><div><input id="symbol" type="checkbox" checked /><span class="small">Include symbols</span></div></label>
+      
+      <label class="option" style="grid-column: 1 / -1;">
+        <div><input id="excludeSimilar" type="checkbox" /><span class="small" style="color:#f59e0b">Exclude Similar Characters (i, l, 1, I, o, 0, O)</span></div>
+      </label>
+    </div>
+
+    <div style="margin-top:14px;display:grid;gap:10px">
+      <div id="results"></div>
+      <div class="row">
+        <div class="output" id="output">Your generated password will appear here</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-left:8px">
+          <button class="btn" id="generate">Generate</button>
+          <button class="btn secondary" id="copy">Copy</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between">
+        <div style="flex:1">
+          <div class="small" style="margin-bottom:6px">Strength: <span id="strengthText">None</span></div>
+          <div class="strength" aria-hidden="true"><i id="strengthBar"></i></div>
+        </div>
+        <div style="min-width:120px;text-align:right"><small id="entropy" class="small">Entropy: 0 bits</small></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn secondary" id="shuffle">Shuffle</button>
+        <button class="btn secondary" id="clear">Clear</button>
+      </div>
+    </div>
+
+    <footer>Built with Firebase • HTML • CSS • JS</footer>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // UPDATED: New Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyB-z1ONV7qWqaqjprA9lZX_xHQIU5HPBdg",
+      authDomain: "my-book-274cb.firebaseapp.com",
+      projectId: "my-book-274cb",
+      storageBucket: "my-book-274cb.firebasestorage.app",
+      messagingSenderId: "540803425490",
+      appId: "1:540803425490:web:e9794c30b520c9e491f90b",
+      measurementId: "G-BGCNSPFW1W"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Logic Variables
+    const LOWER = 'abcdefghijklmnopqrstuvwxyz';
+    const UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const NUM = '0123456789';
+    const SYM = "!@#$%^&*()-_=+[]{};:,.<>/?~|";
+    const SIMILAR_CHARS = ['i', 'l', '1', 'I', 'o', '0', 'O'];
+
+    const usernameEl = document.getElementById('username');
+    const lengthEl = document.getElementById('length');
+    const lenValue = document.getElementById('lenValue');
+    const countEl = document.getElementById('count');
+    const lowerEl = document.getElementById('lower');
+    const upperEl = document.getElementById('upper');
+    const numberEl = document.getElementById('number');
+    const symbolEl = document.getElementById('symbol');
+    const excludeSimilarEl = document.getElementById('excludeSimilar');
+    const generateBtn = document.getElementById('generate');
+    const copyBtn = document.getElementById('copy');
+    const outputEl = document.getElementById('output');
+    const resultsEl = document.getElementById('results');
+    const strengthBar = document.getElementById('strengthBar');
+    const strengthText = document.getElementById('strengthText');
+    const entropyEl = document.getElementById('entropy');
+    const shuffleBtn = document.getElementById('shuffle');
+    const clearBtn = document.getElementById('clear');
+
+    function createCharset(){
+      let set = '';
+      if(lowerEl.checked) set += LOWER;
+      if(upperEl.checked) set += UPPER;
+      if(numberEl.checked) set += NUM;
+      if(symbolEl.checked) set += SYM;
+      if (excludeSimilarEl.checked) {
+        set = set.split('').filter(char => !SIMILAR_CHARS.includes(char)).join('');
+      }
+      return set;
+    }
+
+    function randInt(max){
+      return Math.floor(Math.random()*max);
+    }
+
+    function generatePassword(len, name = '') {
+      const charset = createCharset();
+      if (!charset.length) return '';
+      let pw = '';
+      if (name.length > 0) {
+        let cleanName = name.replace(/\s+/g, '');
+        for (let i = 0; i < cleanName.length && pw.length < len; i++) {
+          let char = cleanName[i];
+          if (excludeSimilarEl.checked && SIMILAR_CHARS.includes(char)) continue;
+          if (UPPER.includes(char) && !upperEl.checked) char = char.toLowerCase();
+          if (LOWER.includes(char) && !lowerEl.checked) char = char.toUpperCase();
+          pw += char;
+        }
+      }
+      while (pw.length < len) {
+        pw += charset[randInt(charset.length)];
+      }
+      let pwArray = pw.split('');
+      for (let i = pwArray.length - 1; i > 0; i--) {
+        const j = randInt(i + 1);
+        [pwArray[i], pwArray[j]] = [pwArray[j], pwArray[i]];
+      }
+      return pwArray.join('');
+    }
+
+    // Improved Save Function with Alert on Failure
+    async function saveToFirebase(passwords, username) {
+      try {
+        await addDoc(collection(db, "generated_passwords"), {
+          name: username || "Anonymous",
+          passwords: passwords,
+          timestamp: serverTimestamp()
+        });
+        console.log("Saved to Firebase successfully!");
+        return true;
+      } catch (e) {
+        console.error("Firebase Error details: ", e);
+        alert("Firebase me save nahi ho paya!\nReason: " + e.message + "\n\nTip: Firestore Settings me jaakar Rules ko 'true' karein.");
+        return false;
+      }
+    }
+
+    function updateStrengthUI(entropy){
+      const percent = Math.min(100, Math.round((entropy/80)*100)); 
+      strengthBar.style.width = percent + '%';
+      entropyEl.textContent = `Entropy: ${entropy} bits`;
+      if (entropy === 0) {
+        strengthText.textContent = "None";
+        strengthText.style.color = "var(--muted)";
+      } else if (entropy < 40) {
+        strengthText.textContent = "Too Weak 🔴";
+        strengthText.style.color = "#ef4444";
+      } else if (entropy >= 40 && entropy < 60) {
+        strengthText.textContent = "Weak 🟠";
+        strengthText.style.color = "#f97316";
+      } else if (entropy >= 60 && entropy < 80) {
+        strengthText.textContent = "Good 🟡";
+        strengthText.style.color = "#f59e0b";
+      } else {
+        strengthText.textContent = "Strong 🔥";
+        strengthText.style.color = "#10b981";
+      }
+    }
+
+    async function mainGenerate(){
+      const len = parseInt(lengthEl.value,10);
+      const count = Math.min(10, Math.max(1, parseInt(countEl.value,10)||1));
+      const charset = createCharset();
+      const nameValue = usernameEl.value.trim();
+
+      if(!charset.length){
+        alert('Please select at least one character type.');
+        return;
+      }
+
+      // Start Loading State
+      generateBtn.disabled = true;
+      generateBtn.textContent = 'Saving...';
+
+      const arr = [];
+      for(let i=0;i<count;i++) arr.push(generatePassword(len, nameValue));
+      
+      // UI Update
+      resultsEl.innerHTML = '';
+      arr.forEach(pw=>{
+        const div = document.createElement('div');
+        div.className = 'output';
+        div.style.marginBottom = '8px';
+        div.textContent = pw;
+        resultsEl.appendChild(div);
+      });
+      outputEl.textContent = arr[0] || '—';
+      
+      const entropy = Math.round(len * Math.log2(charset.length));
+      updateStrengthUI(entropy);
+
+      // Save to Firebase Database
+      await saveToFirebase(arr, nameValue);
+      
+      // Reset Button State
+      generateBtn.disabled = false;
+      generateBtn.textContent = 'Generate';
+    }
+
+    // Listeners
+    lengthEl.addEventListener('input', ()=>{lenValue.textContent = lengthEl.value});
+    generateBtn.addEventListener('click', mainGenerate);
+
+    copyBtn.addEventListener('click', async ()=>{
+      const text = outputEl.textContent.trim();
+      if(!text || text.includes('appear here')) return;
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = 'Copied!';
+      setTimeout(()=>copyBtn.textContent='Copy',1200);
+    });
+
+    shuffleBtn.addEventListener('click', ()=>{
+      const cur = outputEl.textContent.trim();
+      if(!cur || cur.includes('appear here')) return;
+      const arr = cur.split('');
+      for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]}
+      outputEl.textContent = arr.join('');
+    });
+
+    clearBtn.addEventListener('click', ()=>{
+      usernameEl.value = '';
+      excludeSimilarEl.checked = false;
+      outputEl.textContent='Your generated password will appear here';
+      resultsEl.innerHTML='';
+      strengthBar.style.width='0%';
+      strengthText.textContent = "None";
+      strengthText.style.color = "var(--muted)";
+      entropyEl.textContent='Entropy: 0 bits';
+    });
+  </script>
+</body>
+</html>
